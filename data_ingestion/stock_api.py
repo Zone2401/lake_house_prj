@@ -35,6 +35,7 @@ def get_stock_data():
             )
             if not df.empty:
                 # --- Add Audit Columns ---
+                df['ticker']      = ticker
                 df['ingested_at'] = datetime.now()
                 df['source_name'] = 'vnstock_api'
                 
