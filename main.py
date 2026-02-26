@@ -1,82 +1,64 @@
 """
-main.py - Run the full lakehouse ingestion pipeline
-
-Steps:
-  1. Fetch VN30 stock data from vnstock  -> upload to MinIO
-  2. Generate fake user data             -> upload to MinIO
-
-Usage:
-  python main.py
+main.py - Run the upgraded Senior Standard lakehouse pipeline
 """
 
 import sys
 import os
+import logging
+from datetime import datetime
 
-# Add data_ingestion folder to path so we can import its modules
+# Add data_ingestion folder to path 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'data_ingestion'))
 
 from stock_api     import get_stock_data
 from users_info    import get_users_data
-from load_to_minio import upload_df, TODAY
+from load_to_minio import upload_parquet, upload_json, TODAY
+
+# --- Setup Logging ---
+logger = logging.getLogger(__name__)
+
+def run_pipeline():
+    logger.info("Starting Senior Bronze Pipeline...")
+
+    # ---------------------------------------------------------
+    # STEP 1: VN30 Stock Data (Direct to Parquet)
+    # ---------------------------------------------------------
+    logger.info("=== STEP 1: Fetching VN30 stock data ===")
+    stock_data = get_stock_data()
+
+    logger.info(f"Uploading {len(stock_data)} tickers as Parquet to MinIO...")
+    for ticker, df in stock_data.items():
+        s3_key = f"stock_data/vn30/ingested_date={TODAY}/{ticker}.parquet"
+        upload_parquet(df, s3_key)
 
 
-# ---------------------------------------------------------
-# STEP 1: VN30 Stock Data
-# ---------------------------------------------------------
-print("=" * 50)
-print("STEP 1: Fetching VN30 stock data")
-print("=" * 50)
+    # ---------------------------------------------------------
+    # STEP 2: Users (Direct to Parquet)
+    # ---------------------------------------------------------
+    logger.info("=== STEP 2: Generating user data ===")
+    users_df = get_users_data(n=1000)
 
-stock_data = get_stock_data()   # returns dict {"ACB": df, "BID": df, ...}
-
-print(f"\nUploading {len(stock_data)} tickers to MinIO...")
-for ticker, df in stock_data.items():
-    s3_key = f"stock_data/vn30/ingested_date={TODAY}/{ticker}.csv"
-    upload_df(df, s3_key)
-
-print(f"\n[OK] Stock: uploaded {len(stock_data)}/30 tickers\n")
+    s3_key = f"users/ingested_date={TODAY}/users_data.parquet"
+    upload_parquet(users_df, s3_key)
 
 
-# ---------------------------------------------------------
-# STEP 2: Users (fake data)
-# ---------------------------------------------------------
-print("=" * 50)
-print("STEP 2: Generating user data")
-print("=" * 50)
+    # ---------------------------------------------------------
+    # STEP 3: Nike Web Crawl
+    # ---------------------------------------------------------
+    logger.info("=== STEP 3: Running Nike web crawl ===")
+    from scrapy.crawler import CrawlerProcess
+    from scrapy.utils.project import get_project_settings
+    
+    os.environ.setdefault('SCRAPY_SETTINGS_MODULE', 'web_crawl.settings')
+    process = CrawlerProcess(get_project_settings())
+    process.crawl("nike")
+    process.start()
 
-users_df = get_users_data(n=1000)   # returns DataFrame with 1000 rows
-
-s3_key = f"users/ingested_date={TODAY}/users_data.csv"
-upload_df(users_df, s3_key)
-
-print(f"\n[OK] Users: uploaded {len(users_df)} rows\n")
-
-
-# ---------------------------------------------------------
-# STEP 3: Nike Web Crawl
-# ---------------------------------------------------------
-print("=" * 50)
-print("STEP 3: Running Nike web crawl")
-print("=" * 50)
-
-from scrapy.crawler import CrawlerProcess
-from scrapy.utils.project import get_project_settings
-
-# Set the environment variable for Scrapy settings
-os.environ.setdefault('SCRAPY_SETTINGS_MODULE', 'web_crawl.settings')
-
-# Run the spider
-process = CrawlerProcess(get_project_settings())
-process.crawl("nike")
-process.start() # Blocks until finished (requires a fresh process)
-
-print(f"\n[OK] Nike crawl finished and uploaded to MinIO\n")
+    logger.info("Pipeline complete! Check MinIO: http://localhost:9001")
 
 
-# ---------------------------------------------------------
-print("=" * 50)
-print("Pipeline complete!")
-print(f"  MinIO Console : http://localhost:9001")
-print(f"  Bucket        : bronze")
-print(f"  Date          : {TODAY}")
-print("=" * 50)
+if __name__ == "__main__":
+    try:
+        run_pipeline()
+    except Exception as e:
+        logger.error(f"FATAL ERROR: {e}")

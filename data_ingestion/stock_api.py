@@ -1,10 +1,11 @@
 """
-stock_api.py - Fetch 5-year historical price data for all VN30 stocks
+stock_api.py - Fetch 5-year historical price data with Audit Metadata
 
 Returns: dict {"ACB": DataFrame, "BID": DataFrame, ...}
 """
 
 import time
+import pandas as pd
 from datetime import datetime, timedelta
 from vnstock import Vnstock
 
@@ -21,11 +22,7 @@ START_DATE = (datetime.today() - timedelta(days=5 * 365)).strftime("%Y-%m-%d")
 
 
 def get_stock_data():
-    """Fetch historical price data for all 30 VN30 tickers.
-
-    API rate limit: 20 requests/minute -> sleep 3s between each ticker.
-    Returns a dict: {"ACB": DataFrame, "BID": DataFrame, ...}
-    """
+    """Fetch historical price data for all 30 VN30 tickers with Audit columns."""
     stock_data = {}
 
     for i, ticker in enumerate(VN30):
@@ -37,6 +34,10 @@ def get_stock_data():
                 interval='1D'
             )
             if not df.empty:
+                # --- Add Audit Columns ---
+                df['ingested_at'] = datetime.now()
+                df['source_name'] = 'vnstock_api'
+                
                 stock_data[ticker] = df
                 print(f"  -> {len(df)} rows")
             else:
