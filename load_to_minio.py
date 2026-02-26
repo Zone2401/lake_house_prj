@@ -38,9 +38,15 @@ def upload_parquet(df, s3_key):
     Upload a DataFrame to MinIO as a Parquet file (Senior Standard).
     Parquet is faster, smaller, and keeps data types (Schema).
     """
+    # Senior DE Tip: Spark 3.x explicitly hates Nanosecond timestamps from Pandas.
+    # We use coerce_timestamps='ms' to force the Parquet file to use Milliseconds.
+    # This is the most reliable way to fix 'Illegal Parquet type: INT64 (TIMESTAMP(NANOS))'.
+    if 'ingested_at' in df.columns:
+        df['ingested_at'] = df['ingested_at'].astype('datetime64[ms]')
+
     # Convert DataFrame to Parquet format in memory
     buffer = io.BytesIO()
-    df.to_parquet(buffer, index=False, engine='pyarrow')
+    df.to_parquet(buffer, index=False, engine='pyarrow', coerce_timestamps='ms', allow_truncated_timestamps=True)
     
     s3.put_object(
         Bucket=BUCKET,

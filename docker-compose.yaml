@@ -33,6 +33,44 @@ services:
       "
     networks:
       - lakehouse
+  
+  spark-master-2:
+    image: public.ecr.aws/bitnami/spark:3.5
+    container_name: spark-master-2
+    user: root
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_OPTS=-Divy.home=/tmp/.ivy
+      - HADOOP_USER_NAME=bitnami
+    ports:
+      - "9090:8080"
+      - "7077:7077"
+    volumes:
+      - .:/opt/bitnami/spark/app
+      - ./spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+    networks:
+      - lakehouse
+      
+  spark-worker-2:
+    image: public.ecr.aws/bitnami/spark:3.5
+    container_name: spark-worker-2
+    user: root
+    depends_on:
+      - spark-master-2
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master-2:7077
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=1g
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - HADOOP_USER_NAME=bitnami
+    volumes:
+      - .:/opt/bitnami/spark/app
+      - ./spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+    networks:
+      - lakehouse
+    
 
 networks:
   lakehouse:
