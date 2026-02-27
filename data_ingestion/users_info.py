@@ -30,7 +30,7 @@ def get_users_data(n=1000):
 
     df = pd.DataFrame(rows)
     
-    # --- Senior DE Standard: Add Audit Columns ---
+    # Add Audit Columns 
     df['ingested_at'] = datetime.now()
     df['source_name'] = 'internal_faker'
     

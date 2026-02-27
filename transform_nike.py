@@ -1,37 +1,37 @@
 """
 transform_nike.py — Clean & Transform Nike Web Crawl Data
-Bronze (JSON) → Silver (Parquet)
+Bronze (JSON) → Silver (Delta)
 
-Cách dùng:
+Usage:
     python transform_nike.py
 """
 
 from pyspark.sql import functions as F
 from spark_minio import create_spark_session
 
-# ── Path ─────────────────────────────────────────────────────────
+# Path 
 BRONZE_PATH = "s3a://bronze/web_crawl/nike/"
 SILVER_PATH = "s3a://silver/web_crawl/nike/"
 
 
 def transform_nike(spark):
-    print(" Đọc dữ liệu Nike từ Bronze JSON...")
-    # Vì dữ liệu web crawl có thể nạp nhiều đợt, Spark sẽ tự gộp các file JSON
+    print(" Reading Nike data from Bronze JSON...")
+    # Spark will aggregate all JSON files in the Bronze path
     df = spark.read.json(BRONZE_PATH)
 
-    print(f"   Tổng bản ghi gốc : {df.count():,}")
-    print(f"   Schema gốc:")
+    print(f"   Initial records: {df.count():,}")
+    print(f"   Original Schema:")
     df.printSchema()
 
-    # ── Bước 1: Làm sạch cột Price (Ví dụ: "3,239,000₫" → 3239000.0) ───
-    print("\n Bước 1: Xử lý giá tiền (Price Cleaning)...")
+    # Clean Price Column (Example: "3,239,000₫" → 3239000.0) 
+    print("\n Cleaning price data...")
     df = df.withColumn("price_numeric", 
         F.regexp_replace(F.col("price"), "[^0-9]", "").cast("double")
     )
     df = df.withColumn("currency", F.lit("VND"))
 
-    # ── Bước 2: Phân loại đối tượng (Gender/Category) từ Subtitle ─────
-    print(" Bước 2: Phân loại đối tượng (Gender Extraction)...")
+    # Categorize by Gender/Category from Subtitle 
+    print(" Extracting gender category...")
     df = df.withColumn("gender",
         F.when(F.col("subtitle").contains("Men's"), "Men")
          .when(F.col("subtitle").contains("Women's"), "Women")
@@ -39,23 +39,23 @@ def transform_nike(spark):
          .otherwise("Unisex/Other")
     )
 
-    # ── Bước 3: Xóa dòng lỗi (Price không có hoặc < 0) ─────────────────
-    print(" Bước 3: Lọc bỏ dữ liệu lỗi...")
+    #  Remove Erroneous Data (Price <= 0 or missing title)
+    print(" Filtering invalid data...")
     df = df.filter(F.col("price_numeric") > 0).dropna(subset=["title"])
-    print(f"   Rows sau khi lọc: {df.count():,}")
+    print(f"   Rows after filtering: {df.count():,}")
 
-    # ── Bước 4: Xử lý trùng lặp ──────────────────────────────────────
-    print(" Bước 4: Xóa trùng lặp theo title và color...")
+    #  Remove Duplicates
+    print(" Removing duplicates by title and color...")
     df = df.dropDuplicates(["title", "color"])
-    print(f"   Rows sau khi xóa trùng: {df.count():,}")
+    print(f"   Rows after deduplication: {df.count():,}")
 
-    # ── Bước 5: Thêm cột Audit ───────────────────────────────────────
-    print(" Bước 5: Thêm cột audit...")
+    #  Add Audit Columns 
+    print(" Adding audit columns...")
     df = df \
         .withColumn("transformed_at", F.current_timestamp()) \
         .withColumn("source_name",    F.lit("nike_web_crawl"))
 
-    # ── Bước 6: Sắp xếp & Chọn cột ────────────────────────────────────
+    # Select & Reorder Columns
     df = df.select(
         "title",
         "subtitle",
@@ -69,17 +69,18 @@ def transform_nike(spark):
         "source_name"
     )
 
-    # ── Ghi ra Silver (Parquet) ──────────────────────────────────────
-    print(f"\n Ghi vào Silver: {SILVER_PATH}")
+    #  Write to Silver (Delta)
+    print(f"\n Writing to Silver: {SILVER_PATH}")
     df.write \
+        .format("delta") \
         .mode("overwrite") \
         .partitionBy("ingested_date", "gender") \
-        .parquet(SILVER_PATH)
+        .save(SILVER_PATH)
 
-    print(f"\n Hoàn tất! {df.count():,} rows → {SILVER_PATH}")
-    print("\n Schema Silver mới:")
+    print(f"\n Finished! {df.count():,} rows → {SILVER_PATH}")
+    print("\n New Silver Schema:")
     df.printSchema()
-    print("\n Sample 5 dòng Nike Silver:")
+    print("\n Sample 5 Nike Silver rows:")
     df.show(5, truncate=False)
 
     return df

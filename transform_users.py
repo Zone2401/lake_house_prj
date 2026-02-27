@@ -1,56 +1,56 @@
 """
 transform_users.py — Clean & Transform Users Data (PII Handling)
-Bronze (Parquet) → Silver (Parquet)
+Bronze (Parquet) → Silver (Delta)
 
-Cách dùng:
+Usage:
     python transform_users.py
 """
 
 from pyspark.sql import functions as F
 from spark_minio import create_spark_session
 
-# ── Path ─────────────────────────────────────────────────────────
+# Path
 BRONZE_PATH = "s3a://bronze/users/"
 SILVER_PATH = "s3a://silver/users/"
 
 
 def transform_users(spark):
-    print(" Đọc dữ liệu Users từ Bronze Parquet...")
+    print(" Reading User data from Bronze Parquet...")
     df = spark.read.parquet(BRONZE_PATH)
 
-    print(f"   Tổng bản ghi gốc : {df.count():,}")
-    print(f"   Schema gốc:")
+    print(f"   Initial records: {df.count():,}")
+    print(f"   Original Schema:")
     df.printSchema()
 
-    # ── Bước 1: Chuẩn hóa Phone Number (Xóa ký tự đặc biệt) ───────────
-    print("\n Bước 1: Chuẩn hóa số điện thoại...")
+    # Normalize Phone Number (Remove special characters)
+    print("\n Normalizing phone numbers...")
     df = df.withColumn("phone_clean", 
         F.regexp_replace(F.col("phone"), r"[^0-9]", "")
     )
 
-    # ── Bước 2: Masking Email (Bảo mật thông tin - PII Masking) ────────
-    # Ví dụ: abcxyz@gmail.com -> a***z@gmail.com
-    print(" Bước 2: Masking Email (Bảo mật PII)...")
+    # Email Masking (PII Protection) 
+    # Example: abcxyz@gmail.com -> a***z@gmail.com
+    print(" Masking Email (PII Security)...")
     df = df.withColumn("email_masked",
         F.regexp_replace(F.col("email"), r"(^.)(.+)(.@.+$)", r"$1***$3")
     )
 
-    # ── Bước 3: Chuẩn hóa trạng thái (Status Standardizing) ────────────
-    print(" Bước 3: Chuẩn hóa Status...")
+    # Standardize Status 
+    print("Standardizing Status...")
     df = df.withColumn("status", F.upper(F.col("status")))
 
-    # ── Bước 4: Xử lý Null & lọc dữ liệu lỗi ──────────────────────────
-    print(" Bước 4: Lọc dữ liệu lỗi...")
+    # Handle Nulls & Filter Data 
+    print("Filtering invalid data...")
     df = df.dropna(subset=["id", "email"]).filter(F.col("amount") >= 0)
-    print(f"   Rows sau khi lọc: {df.count():,}")
+    print(f"   Rows after filtering: {df.count():,}")
 
-    # ── Bước 5: Thêm cột Audit & Processing Metadata ─────────────────
-    print(" Bước 5: Thêm cột audit...")
+    # Add Audit Columns & Metadata 
+    print("Adding audit columns...")
     df = df \
         .withColumn("transformed_at", F.current_timestamp()) \
         .withColumn("source_name",    F.lit("internal_faker_users"))
 
-    # ── Bước 6: Sắp xếp cột ──────────────────────────────────────────
+    # Select & Reorder Columns 
     df = df.select(
         "id",
         "name",
@@ -65,18 +65,19 @@ def transform_users(spark):
         "source_name"
     )
 
-    # ── Ghi ra Silver (Parquet) ──────────────────────────────────────
-    # Phân vùng theo status để dễ dàng quản lý User Active/Inactive
-    print(f"\n Ghi vào Silver: {SILVER_PATH}")
+    # Write to Silver (Delta)
+    # Partition by status for easy User management (Active/Inactive)
+    print(f"\n Writing to Silver: {SILVER_PATH}")
     df.write \
+        .format("delta") \
         .mode("overwrite") \
         .partitionBy("status") \
-        .parquet(SILVER_PATH)
+        .save(SILVER_PATH)
 
-    print(f"\n Hoàn tất! {df.count():,} rows → {SILVER_PATH}")
-    print("\n Schema Silver mới:")
+    print(f"\n Finished! {df.count():,} rows → {SILVER_PATH}")
+    print("\n New Silver Schema:")
     df.printSchema()
-    print("\n Sample 5 dòng Users Silver:")
+    print("\n Sample 5 Users Silver rows:")
     df.show(5, truncate=False)
 
     return df

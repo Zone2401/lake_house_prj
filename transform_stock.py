@@ -1,29 +1,29 @@
 """
 transform_stock.py — Clean & Transform VN30 Stock Data
-Bronze (Parquet) → Silver (Parquet)
+Bronze (Parquet) → Silver (Delta)
 
-Cách dùng:
+Usage:
     python transform_stock.py
 """
 
 from pyspark.sql import functions as F
 from spark_minio import create_spark_session
 
-# ── Path ─────────────────────────────────────────────────────────
+# Path 
 BRONZE_PATH = "s3a://bronze/stock_data/vn30/"
 SILVER_PATH = "s3a://silver/stock_data/vn30/"
 
 
 def transform_stock(spark):
-    print(" Đọc dữ liệu từ Bronze...")
+    print(" Reading data from Bronze...")
     df = spark.read.parquet(BRONZE_PATH)
 
-    print(f"   Tổng rows ban đầu : {df.count():,}")
-    print(f"   Schema gốc:")
+    print(f"   Initial rows: {df.count():,}")
+    print(f"   Original Schema:")
     df.printSchema()
 
-    # ── Bước 1: Đổi kiểu dữ liệu ────────────────────────────────
-    print("\n Bước 1: Chuẩn hóa kiểu dữ liệu...")
+    #  Cast Data Types 
+    print("\n  Normalizing data types...")
     df = df.withColumn("time", F.to_date("time"))          # string → date
     df = df.withColumn("open",   F.col("open").cast("double"))
     df = df.withColumn("high",   F.col("high").cast("double"))
@@ -31,29 +31,29 @@ def transform_stock(spark):
     df = df.withColumn("close",  F.col("close").cast("double"))
     df = df.withColumn("volume", F.col("volume").cast("long"))
 
-    # ── Bước 2: Xóa dòng null ở cột quan trọng ──────────────────
-    print(" Bước 2: Xóa dòng null...")
+    # Remove Nulls in Critical columns
+    print("  Removing null rows...")
     df = df.dropna(subset=["time", "close", "volume"])
-    print(f"   Rows sau khi xóa null: {df.count():,}")
+    print(f"   Rows after null removal: {df.count():,}")
 
-    # ── Bước 3: Xóa dòng trùng lặp ──────────────────────────────
-    print(" Bước 3: Xóa dòng trùng lặp...")
+    # Remove Duplicates
+    print("Removing duplicate rows...")
     df = df.dropDuplicates(["ticker", "time", "open", "close"])
-    print(f"   Rows sau khi xóa trùng: {df.count():,}")
+    print(f"   Rows after duplicate removal: {df.count():,}")
 
-    # ── Bước 4: Xóa giá trị vô lý ───────────────────────────────
-    print(" Bước 4: Lọc giá trị vô lý...")
+    # Filter Invalid Values 
+    print("Filtering out invalid values...")
     df = df.filter(
         (F.col("close")  > 0) &
         (F.col("volume") > 0) &
-        (F.col("high")   >= F.col("low")) &    # high phải >= low
-        (F.col("high")   >= F.col("close")) &  # high phải >= close
-        (F.col("low")    <= F.col("open"))     # low phải <= open
+        (F.col("high")   >= F.col("low")) &    # high must be >= low
+        (F.col("high")   >= F.col("close")) &  # high must be >= close
+        (F.col("low")    <= F.col("open"))     # low must be <= open
     )
-    print(f"   Rows sau khi lọc: {df.count():,}")
+    print(f"   Rows after filtering: {df.count():,}")
 
-    # ── Bước 5: Thêm cột tính toán ──────────────────────────────
-    print(" Bước 5: Thêm cột tính toán...")
+    #  Add Calculated Columns 
+    print(" Adding calculated columns...")
     df = df \
         .withColumn("price_change",
             F.round(F.col("close") - F.col("open"), 2)
@@ -65,14 +65,14 @@ def transform_stock(spark):
             F.round(F.col("high") - F.col("low"), 2)
         )
 
-    # ── Bước 6: Thêm cột audit ───────────────────────────────────
-    print(" Bước 6: Thêm cột audit...")
+    #  Add Audit Columns 
+    print(" Adding audit columns...")
     df = df \
         .withColumn("transformed_at", F.current_timestamp()) \
         .withColumn("year",  F.year("time")) \
         .withColumn("month", F.month("time"))
 
-    # ── Bước 7: Sắp xếp cột gọn gàng ────────────────────────────
+    #  Reorder Columns 
     df = df.select(
         "ticker", "time",
         "open", "high", "low", "close",
@@ -86,17 +86,18 @@ def transform_stock(spark):
         "transformed_at",
     )
 
-    # ── Ghi ra Silver ─────────────────────────────────────────────
-    print(f"\n Ghi vào Silver: {SILVER_PATH}")
+    #  Write to Silver (Delta) 
+    print(f"\n Writing to Silver: {SILVER_PATH}")
     df.write \
+        .format("delta") \
         .mode("overwrite") \
         .partitionBy("year", "month") \
-        .parquet(SILVER_PATH)
+        .save(SILVER_PATH)
 
-    print(f"\n Hoàn tất! {df.count():,} rows → {SILVER_PATH}")
-    print("\n Schema Silver:")
+    print(f"\n Finished! {df.count():,} rows → {SILVER_PATH}")
+    print("\n Silver Schema:")
     df.printSchema()
-    print("\n Sample 5 dòng:")
+    print("\n Sample 5 rows:")
     df.show(5, truncate=False)
 
     return df

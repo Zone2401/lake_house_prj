@@ -1,5 +1,5 @@
 """
-main.py - Run the upgraded Senior Standard lakehouse pipeline
+main.py - Orchestrate the Lakehouse data pipeline
 """
 
 import sys
@@ -18,12 +18,12 @@ from load_to_minio import upload_parquet, upload_json, TODAY
 logger = logging.getLogger(__name__)
 
 def run_pipeline():
-    logger.info("Starting Senior Bronze Pipeline...")
+    logger.info("Starting Lakehouse Bronze Pipeline...")
 
-    # ---------------------------------------------------------
-    # STEP 1: VN30 Stock Data (Direct to Parquet)
-    # ---------------------------------------------------------
-    logger.info("=== STEP 1: Fetching VN30 stock data ===")
+    
+    # VN30 Stock Data (Ingest to Bronze as Parquet)
+    
+    logger.info(" Fetching VN30 stock data ")
     stock_data = get_stock_data()
 
     logger.info(f"Uploading {len(stock_data)} tickers as Parquet to MinIO...")
@@ -32,20 +32,20 @@ def run_pipeline():
         upload_parquet(df, s3_key)
 
 
-    # ---------------------------------------------------------
-    # STEP 2: Users (Direct to Parquet)
-    # ---------------------------------------------------------
-    logger.info("=== STEP 2: Generating user data ===")
+    
+    # Users (Ingest to Bronze as Parquet)
+    
+    logger.info(" Generating user data ")
     users_df = get_users_data(n=1000)
 
     s3_key = f"users/ingested_date={TODAY}/users_data.parquet"
     upload_parquet(users_df, s3_key)
 
 
-    # ---------------------------------------------------------
-    # STEP 3: Nike Web Crawl
-    # ---------------------------------------------------------
-    logger.info("=== STEP 3: Running Nike web crawl ===")
+   
+    # Nike Web Crawl (Ingest to Bronze as JSON)
+    
+    logger.info("Running Nike web crawl")
     from scrapy.crawler import CrawlerProcess
     from scrapy.utils.project import get_project_settings
     
@@ -54,7 +54,7 @@ def run_pipeline():
     process.crawl("nike")
     process.start()
 
-    logger.info("Pipeline complete! Check MinIO: http://localhost:9001")
+    logger.info("Pipeline complete! Check MinIO at http://localhost:9001")
 
 
 if __name__ == "__main__":

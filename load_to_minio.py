@@ -1,11 +1,5 @@
 """
-load_to_minio.py - Helper functions to upload data to MinIO (Senior DE Standard)
-
-Usage:
-    from load_to_minio import upload_parquet, upload_json
-
-    upload_parquet(df, "stock_data/vn30/ACB.parquet")
-    upload_json(data, "web_crawl/nike/nike_products.json")
+load_to_minio.py - Helper functions to upload data to MinIO
 """
 
 import io
@@ -14,7 +8,7 @@ import boto3
 import logging
 from datetime import datetime
 
-# --- Professional Logging Setup ---
+#Logging Setup
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -32,15 +26,23 @@ s3 = boto3.client(
 BUCKET = "bronze"
 TODAY  = datetime.today().strftime("%Y-%m-%d")
 
+def ensure_bucket_exists(bucket_name):
+    """Checks if a bucket exists, and creates it if it doesn't."""
+    try:
+        s3.head_bucket(Bucket=bucket_name)
+    except:
+        logger.info(f"Bucket '{bucket_name}' not found. Creating it...")
+        s3.create_bucket(Bucket=bucket_name)
+
+# Auto-ensure the bronze bucket exists when this module is imported
+ensure_bucket_exists(BUCKET)
+
 
 def upload_parquet(df, s3_key):
     """
-    Upload a DataFrame to MinIO as a Parquet file (Senior Standard).
-    Parquet is faster, smaller, and keeps data types (Schema).
+    Upload a DataFrame to MinIO as a Parquet file.
+    Note: coerce_timestamps='ms' is used to ensure compatibility with Spark 3.x.
     """
-    # Senior DE Tip: Spark 3.x explicitly hates Nanosecond timestamps from Pandas.
-    # We use coerce_timestamps='ms' to force the Parquet file to use Milliseconds.
-    # This is the most reliable way to fix 'Illegal Parquet type: INT64 (TIMESTAMP(NANOS))'.
     if 'ingested_at' in df.columns:
         df['ingested_at'] = df['ingested_at'].astype('datetime64[ms]')
 
@@ -58,7 +60,7 @@ def upload_parquet(df, s3_key):
 
 
 def upload_json(data, s3_key):
-    """Upload a dict/list to MinIO as a JSON file (no local file saved)."""
+    """Upload a dict/list to MinIO as a JSON file."""
     body = json.dumps(data, ensure_ascii=False).encode("utf-8")
     s3.put_object(
         Bucket=BUCKET,
