@@ -11,8 +11,7 @@ from datetime import datetime
 sys.path.append(os.path.join(os.path.dirname(__file__), 'data_ingestion'))
 
 from stock_api     import get_stock_data
-from users_info    import get_users_data
-from load_to_minio import upload_parquet, upload_json, TODAY
+from load_to_minio import upload_parquet, TODAY
 
 # --- Setup Logging ---
 logger = logging.getLogger(__name__)
@@ -31,28 +30,6 @@ def run_pipeline():
         s3_key = f"stock_data/vn30/ingested_date={TODAY}/{ticker}.parquet"
         upload_parquet(df, s3_key)
 
-
-    
-    # Users (Ingest to Bronze as Parquet)
-    
-    logger.info(" Generating user data ")
-    users_df = get_users_data(n=1000)
-
-    s3_key = f"users/ingested_date={TODAY}/users_data.parquet"
-    upload_parquet(users_df, s3_key)
-
-
-   
-    # Nike Web Crawl (Ingest to Bronze as JSON)
-    
-    logger.info("Running Nike web crawl")
-    from scrapy.crawler import CrawlerProcess
-    from scrapy.utils.project import get_project_settings
-    
-    os.environ.setdefault('SCRAPY_SETTINGS_MODULE', 'web_crawl.settings')
-    process = CrawlerProcess(get_project_settings())
-    process.crawl("nike")
-    process.start()
 
     logger.info("Pipeline complete! Check MinIO at http://localhost:9001")
 

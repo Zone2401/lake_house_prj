@@ -40,24 +40,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Could not read Stock Delta table: {e}")
 
-    # Read Users (Delta) 
-    print("\n [USERS SILVER]")
-    try:
-        df_users = spark.read.format("delta").load("s3a://silver/users/")
-        df_users.printSchema()
-        df_users.show(5)
-        print(f"Total rows: {df_users.count():,}")
-    except Exception as e:
-        print(f"Could not read Users Delta table: {e}")
-
-    # Read Nike (Delta)
-    print("\n [NIKE SILVER]")
-    try:
-        df_nike = spark.read.format("delta").load("s3a://silver/web_crawl/nike/")
-        df_nike.printSchema()
-        df_nike.show(5)
-        print(f"Total rows: {df_nike.count():,}")
-    except Exception as e:
-        print(f"Could not read Nike Delta table: {e}")
 
     spark.stop()

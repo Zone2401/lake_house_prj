@@ -16,9 +16,9 @@ VN30 = [
     "TCB", "TPB", "VCB", "VHM", "VIB", "VIC", "VJC", "VNM", "VPB", "VRE"
 ]
 
-# Date range: last 5 years
+# Date range: last 10 years
 END_DATE   = datetime.today().strftime("%Y-%m-%d")
-START_DATE = (datetime.today() - timedelta(days=5 * 365)).strftime("%Y-%m-%d")
+START_DATE = (datetime.today() - timedelta(days=10 * 365)).strftime("%Y-%m-%d")
 
 
 def get_stock_data():

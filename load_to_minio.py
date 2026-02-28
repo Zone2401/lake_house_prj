@@ -3,7 +3,7 @@ load_to_minio.py - Helper functions to upload data to MinIO
 """
 
 import io
-import json
+import os
 import boto3
 import logging
 from datetime import datetime
@@ -15,10 +15,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Get MinIO endpoint from environment or default to localhost
+MINIO_ENDPOINT = os.environ.get("MINIO_ENDPOINT", "http://localhost:9000")
+
 # MinIO connection settings
 s3 = boto3.client(
     "s3",
-    endpoint_url="http://localhost:9000",
+    endpoint_url=MINIO_ENDPOINT,
     aws_access_key_id="minioadmin",
     aws_secret_access_key="minioadmin",
 )
@@ -59,13 +62,3 @@ def upload_parquet(df, s3_key):
     logger.info(f"Uploaded Parquet -> s3://{BUCKET}/{s3_key}")
 
 
-def upload_json(data, s3_key):
-    """Upload a dict/list to MinIO as a JSON file."""
-    body = json.dumps(data, ensure_ascii=False).encode("utf-8")
-    s3.put_object(
-        Bucket=BUCKET,
-        Key=s3_key,
-        Body=body,
-        ContentType="application/json",
-    )
-    logger.info(f"Uploaded JSON -> s3://{BUCKET}/{s3_key}")

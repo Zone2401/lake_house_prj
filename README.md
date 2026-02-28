@@ -1,6 +1,6 @@
-# 🚀 VN30 Stock & E-commerce Lakehouse Project
+# 🚀 VN30 Stock Lakehouse Project
 
-A Data Lakehouse system that collects VN30 stock data, user information, and Nike web crawl data. The pipeline processes data through Bronze and Silver layers using Spark and Delta Lake on Docker.
+A Data Lakehouse system that collects VN30 stock data. The pipeline processes data through Bronze and Silver layers using Spark and Delta Lake on Docker.
 
 ## 🏗️ Data Architecture
 - **Bronze Layer:** Raw data ingested directly into MinIO as Parquet/JSON.
@@ -34,24 +34,6 @@ docker exec -e HADOOP_USER_NAME=bitnami spark-master-2 spark-submit `
   --conf "spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension" `
   --conf "spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog" `
   /opt/bitnami/spark/app/transform_stock.py
-```
-
-**Process Nike Web Crawl:**
-```powershell
-docker exec -e HADOOP_USER_NAME=bitnami spark-master-2 spark-submit `
-  --packages org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262,io.delta:delta-spark_2.12:3.1.0 `
-  --conf "spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension" `
-  --conf "spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog" `
-  /opt/bitnami/spark/app/transform_nike.py
-```
-
-**Process User Data (PII Masking):**
-```powershell
-docker exec -e HADOOP_USER_NAME=bitnami spark-master-2 spark-submit `
-  --packages org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262,io.delta:delta-spark_2.12:3.1.0 `
-  --conf "spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension" `
-  --conf "spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog" `
-  /opt/bitnami/spark/app/transform_users.py
 ```
 
 ### 4. Query & Analytics
