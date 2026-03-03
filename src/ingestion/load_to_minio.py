@@ -1,6 +1,3 @@
-"""
-load_to_minio.py - Helper functions to upload data to MinIO
-"""
 
 import io
 import os

@@ -1,7 +1,3 @@
-"""
-silver_to_gold.py — Data Modeling (Dim/Fact) & Analysis
-Silver Table -> Gold Tables
-"""
 
 import argparse
 from pyspark.sql import SparkSession
@@ -9,7 +5,7 @@ from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
 def main(dim_stock_path, fact_prices_path, top10_path):
-    # --- 1. Create Spark session (Simplified to use spark-defaults.conf) ---
+    # Create Spark session 
     spark = SparkSession.builder \
         .appName("SilverToGold") \
         .enableHiveSupport() \
@@ -18,11 +14,11 @@ def main(dim_stock_path, fact_prices_path, top10_path):
     print("Silver to Gold: Spark session created.")
 
     try:
-        # --- 2. Read from silver table in Hive ---
+        # Read from silver table in Hive 
         print("Reading from lakehouse.silver_stock...")
         silver_df = spark.table("lakehouse.silver_stock")
 
-        # --- 3. Create Tables ---
+        # Create Tables 
         
         # Dimension Table: DimStock
         print("Creating DimStock...")
@@ -52,7 +48,7 @@ def main(dim_stock_path, fact_prices_path, top10_path):
             .orderBy(F.desc("growth_pct")) \
             .limit(10)
 
-        # --- 4. Write Tables and Register in Hive ---
+        # Write Tables and Register in Hive 
         print("Writing Gold tables...")
 
         # DimStock

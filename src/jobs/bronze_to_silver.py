@@ -8,7 +8,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
 def main(bronze_input_path, silver_output_path):
-    # --- 1. Create Spark session (Simplified to use spark-defaults.conf) ---
+    # Create Spark session (Simplified to use spark-defaults.conf) 
     spark = SparkSession.builder \
         .appName("BronzeToSilver") \
         .enableHiveSupport() \
@@ -20,13 +20,13 @@ def main(bronze_input_path, silver_output_path):
         # Create database
         spark.sql("CREATE DATABASE IF NOT EXISTS lakehouse")
 
-        # --- 2. Register/Read Bronze table ---
+        # Register/Read Bronze table 
         print(f"Reading data from Bronze path: {bronze_input_path}")
         
-        # Read Bronze Parquet data (automatically discovers partitions like ingested_date=...)
+        # Read Bronze Parquet data 
         df = spark.read.parquet(bronze_input_path)
 
-        # --- 3. Data Quality & Transformations ---
+        # Data Quality & Transformations 
         print("Normalizing data types and cleaning data...")
         
         # Cast Data Types
@@ -64,11 +64,8 @@ def main(bronze_input_path, silver_output_path):
             "price_change", "price_change_pct", "year", "month", "transformed_at"
         )
 
-        # --- 4. Write to Silver layer & Register in Hive ---
+        # Write to Silver layer & Register in Hive
         print(f"Writing Silver table to: {silver_output_path}")
-
-        # Note: We use .save() then .CREATE TABLE instead of .saveAsTable(mode="overwrite") 
-        # to avoid the "truncate in batch mode" error on S3/Delta.
         (silver_df.write
             .format("delta")
             .mode("overwrite")

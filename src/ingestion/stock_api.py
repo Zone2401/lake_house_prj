@@ -1,8 +1,3 @@
-"""
-stock_api.py - Fetch 5-year historical price data with Audit Metadata
-
-Returns: dict {"ACB": DataFrame, "BID": DataFrame, ...}
-"""
 
 import time
 import pandas as pd

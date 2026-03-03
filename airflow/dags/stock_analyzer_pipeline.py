@@ -41,7 +41,7 @@ with DAG(
         """,
     )
 
-    # 3. Silver to Gold (Spark job runs in spark-master-2 container)
+    # 3. Silver to Gold 
     gold_transformation = BashOperator(
         task_id='transform_silver_to_gold',
         bash_command="""

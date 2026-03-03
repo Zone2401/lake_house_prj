@@ -8,7 +8,7 @@ from datetime import datetime
 from ingestion.stock_api     import get_stock_data
 from ingestion.load_to_minio import upload_parquet, TODAY
 
-# --- Setup Logging ---
+# Setup Logging 
 logger = logging.getLogger(__name__)
 
 def run_pipeline():
