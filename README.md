@@ -89,17 +89,7 @@ lake_house_prj/
 ├── requirements.txt    # Python dependencies
 ├── .gitignore          # Git ignore rules
 └── README.md           # Project documentation
-```
 
-
-
-
-
-
-
-Dưới đây là **đúng phần bạn gửi**, chỉ chỉnh lại format Markdown cho chuẩn GitHub (không thêm nội dung mới):
-
----
 
 ## How to Run
 
