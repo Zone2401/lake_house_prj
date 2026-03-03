@@ -44,6 +44,9 @@ services:
       - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
       - SPARK_OPTS=-Divy.home=/tmp/.ivy
+      - HADOOP_USER_NAME=bitnami
+      - IVY_HOME=/tmp/.ivy
+      - AIRFLOW__CORE__SECRET_KEY=secret_lakehouse_key
       
     ports:
       - "9090:8080"
@@ -67,6 +70,7 @@ services:
       - SPARK_WORKER_MEMORY=1g
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
       - HADOOP_USER_NAME=bitnami
+      - IVY_HOME=/tmp/.ivy
     volumes:
       - .:/opt/bitnami/spark/app
       - ./spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
@@ -104,6 +108,7 @@ services:
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - PYTHONPATH=/opt/airflow/app
       - _PIP_ADDITIONAL_REQUIREMENTS=vnstock pyarrow boto3 ipython pandas pyspark delta-spark
+      - AIRFLOW__CORE__SECRET_KEY=secret_lakehouse_key
       - MINIO_ENDPOINT=http://minio:9000
     ports:
       - "8080:8080"
@@ -130,6 +135,7 @@ services:
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - PYTHONPATH=/opt/airflow/app
       - _PIP_ADDITIONAL_REQUIREMENTS=vnstock pyarrow boto3 ipython pandas pyspark delta-spark
+      - AIRFLOW__CORE__SECRET_KEY=secret_lakehouse_key
       - MINIO_ENDPOINT=http://minio:9000
     volumes:
       - .:/opt/airflow/app
@@ -139,7 +145,7 @@ services:
     command: scheduler
     networks:
       - lakehouse
-
+    
   airflow-init:
     image: apache/airflow:2.10.4
     container_name: airflow-init
@@ -147,6 +153,7 @@ services:
       - postgres
     environment:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
+      - AIRFLOW__CORE__SECRET_KEY=secret_lakehouse_key
       - _PIP_ADDITIONAL_REQUIREMENTS=vnstock pyarrow boto3 ipython pandas pyspark delta-spark
     command: bash -c "airflow db init && airflow users create --username admin --firstname admin --lastname admin --role Admin --email admin@example.com --password admin"
     networks:
@@ -178,6 +185,7 @@ services:
     environment:
       SERVICE_NAME: metastore
       DB_DRIVER: postgres
+      IS_RESUME: "true"
     ports:
       - "9083:9083"
     volumes:

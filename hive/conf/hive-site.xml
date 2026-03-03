@@ -22,10 +22,21 @@
     <value>hive</value>
   </property>
 
-  <!-- Disable schema verification so it auto creates -->
+  <!-- Enable schema verification -->
   <property>
     <name>hive.metastore.schema.verification</name>
+    <value>true</value>
+  </property>
+
+  <!-- Prevent automatic schema changes by DataNucleus -->
+  <property>
+    <name>datanucleus.schema.autoCreateAll</name>
     <value>false</value>
+  </property>
+
+  <property>
+    <name>datanucleus.fixedDatastore</name>
+    <value>true</value>
   </property>
 
   <!-- Warehouse location -->
